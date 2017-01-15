@@ -3,7 +3,7 @@ package golaxy
 import (
 	"os"
 	"encoding/json"
-	"golaxy/http"
+	"github.com/mskoroglu/golaxy/http"
 )
 
 type Properties struct {

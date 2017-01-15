@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"encoding/json"
 	"regexp"
-	"golaxy/http/request/path"
-	"golaxy/http/request"
+	"github.com/mskoroglu/golaxy/http/request/path"
+	"github.com/mskoroglu/golaxy/http/request"
 )
 
 type handlerFunc struct {
@@ -111,6 +111,7 @@ func assignRequestHeaders(handler *handlerFunc, request *http.Request) {
 
 func requestHandler(writer http.ResponseWriter, request *http.Request) {
 	var notFound bool = true
+	println(len(handlers))
 	for i := 0; i < len(handlers); i++ {
 		handler := handlers[i]
 		if isMatches(handler, request) {

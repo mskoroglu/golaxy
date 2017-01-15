@@ -1,8 +1,8 @@
 package http
 
 import (
-	"golaxy/http/request/path"
-	"golaxy/http/request"
+	"github.com/mskoroglu/golaxy/http/request/path"
+	"github.com/mskoroglu/golaxy/http/request"
 )
 
 type Request struct {
