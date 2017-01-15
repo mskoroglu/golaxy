@@ -111,7 +111,6 @@ func assignRequestHeaders(handler *handlerFunc, request *http.Request) {
 
 func requestHandler(writer http.ResponseWriter, request *http.Request) {
 	var notFound bool = true
-	println(len(handlers))
 	for i := 0; i < len(handlers); i++ {
 		handler := handlers[i]
 		if isMatches(handler, request) {
