@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"github.com/mskoroglu/golaxy/http/request/path"
 	"github.com/mskoroglu/golaxy/http/request"
+	"github.com/mskoroglu/golaxy/view"
 )
 
 type handlerFunc struct {
@@ -19,9 +20,14 @@ type handlerFunc struct {
 	output    []reflect.Value
 	request   Request
 	goRequest http.Request
+	view      view.View
 }
 
-var handlers []*handlerFunc = make([]*handlerFunc, 0)
+var (
+	STATIC_DIRECTORY                  = "static"
+	STATIC_PATH_PREFIX                = "/static/"
+	handlers           []*handlerFunc = make([]*handlerFunc, 0)
+)
 
 func Get(path string, function interface{}) error {
 	createHandler(path, "GET", function)
@@ -70,6 +76,8 @@ func registerHandler(handler *handlerFunc) {
 			inArgs[i] = reflect.ValueOf(&handler.request.Header)
 		case reflect.TypeOf(path.Variable{}):
 			inArgs[i] = reflect.ValueOf(&handler.request.PathVariable)
+		case reflect.TypeOf(view.View{}):
+			inArgs[i] = reflect.ValueOf(&handler.view)
 		}
 	}
 	handler.input = inArgs
@@ -123,6 +131,17 @@ func requestHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 }
 
+func isView(handler *handlerFunc) bool {
+	var isView bool
+	for i := 0; i < handler.function.Type().NumIn(); i++ {
+		isView = handler.function.Type().In(i).Elem() == reflect.TypeOf(view.View{})
+		if isView {
+			return isView
+		}
+	}
+	return isView
+}
+
 func processRequest(handler *handlerFunc, writer http.ResponseWriter, request *http.Request) {
 	handler.goRequest = *request
 	handler.request.URL = request.URL.Path
@@ -131,7 +150,13 @@ func processRequest(handler *handlerFunc, writer http.ResponseWriter, request *h
 	assignRequestHeaders(handler, request)
 
 	funcOut := handler.function.Call(handler.input)
-	if len(funcOut) > 0 {
+	if isView(handler) {
+		if len(handler.view.GetView()) == 0 {
+			handler.view.SetView(funcOut[0].Interface().(string))
+		}
+		viewResolver := view.ViewResolver{View: &handler.view, Writer: writer}
+		viewResolver.Resolve()
+	} else if !isView(handler) && len(funcOut) > 0 {
 		funcOutObject := funcOut[0].Interface()
 		writer.Header().Set("Content-Type", "application/json")
 		responseWrite(writer, funcOutObject)
@@ -150,6 +175,8 @@ func responseWrite(writer http.ResponseWriter, funcOutObject interface{}) {
 }
 
 func StartHttpServer(ip string, port int) {
+	fs := http.FileServer(http.Dir(STATIC_DIRECTORY))
+	http.Handle(STATIC_PATH_PREFIX, http.StripPrefix(STATIC_PATH_PREFIX, fs))
 	http.HandleFunc("/", requestHandler)
 	socket := ip + ":" + strconv.Itoa(port)
 	http.ListenAndServe(socket, nil)

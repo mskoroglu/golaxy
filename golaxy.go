@@ -23,7 +23,8 @@ var Run = func(args ...interface{}) {
 func loadProperties() {
 	configFile, err := os.Open("app.json")
 	if err != nil {
-		println(err.Error())
+		props.Server.Port = 8080
+		return
 	}
 
 	parser := json.NewDecoder(configFile)
