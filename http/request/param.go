@@ -6,6 +6,9 @@ import (
 	"fmt"
 )
 
+// HTTP istekleri ile gelen parametreleri döndürür.
+// Tip dönüşümleriyle uğraşmak zorunda kalınmadan, uygun metod kullanılarak veri elde edilebilir.
+// Aynı ada sahip parametreleri elde edebilmek için ilgili tipin array döndüren metodu kullanılabilir.
 type Param map[string][]string
 
 func (p *Param) value(key string) ([]string, error) {

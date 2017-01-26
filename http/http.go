@@ -10,6 +10,7 @@ import (
 	"github.com/mskoroglu/golaxy/http/request/path"
 	"github.com/mskoroglu/golaxy/http/request"
 	"github.com/mskoroglu/golaxy/view"
+	"github.com/mskoroglu/golaxy/config"
 )
 
 type handlerFunc struct {
@@ -29,21 +30,29 @@ var (
 	handlers           []*handlerFunc = make([]*handlerFunc, 0)
 )
 
+// HTTP GET isteklerinin karşılanabileceği mapping fonksiyonudur.
+// İlk parametre URL, ikinci parametre ise handler fonksiyonu olmalıdır.
 func Get(path string, function interface{}) error {
 	createHandler(path, "GET", function)
 	return nil
 }
 
+// HTTP POST isteklerinin karşılanabileceği mapping fonksiyonudur.
+// İlk parametre URL, ikinci parametre ise handler fonksiyonu olmalıdır.
 func Post(path string, function interface{}) error {
 	createHandler(path, "POST", function)
 	return nil
 }
 
+// HTTP PUT isteklerinin karşılanabileceği mapping fonksiyonudur.
+// İlk parametre URL, ikinci parametre ise handler fonksiyonu olmalıdır.
 func Put(path string, function interface{}) error {
 	createHandler(path, "PUT", function)
 	return nil
 }
 
+// HTTP DELETE isteklerinin karşılanabileceği mapping fonksiyonudur.
+// İlk parametre URL, ikinci parametre ise handler fonksiyonu olmalıdır.
 func Delete(path string, function interface{}) error {
 	createHandler(path, "DELETE", function)
 	return nil
@@ -122,12 +131,18 @@ func requestHandler(writer http.ResponseWriter, request *http.Request) {
 	for i := 0; i < len(handlers); i++ {
 		handler := handlers[i]
 		if isMatches(handler, request) {
+			if isView(handler) {
+				if t, url := handler.view.IsRedirected(); t {
+					http.Redirect(writer, request, url, 301)
+					return
+				}
+			}
 			processRequest(handler, writer, request)
 			notFound = false
 		}
 	}
 	if notFound {
-		http.Error(writer, "Not Found!", http.StatusNotFound)
+		http.Error(writer, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}
 }
 
@@ -151,11 +166,7 @@ func processRequest(handler *handlerFunc, writer http.ResponseWriter, request *h
 
 	funcOut := handler.function.Call(handler.input)
 	if isView(handler) {
-		if len(handler.view.GetView()) == 0 {
-			handler.view.SetView(funcOut[0].Interface().(string))
-		}
-		viewResolver := view.ViewResolver{View: &handler.view, Writer: writer}
-		viewResolver.Resolve()
+		continueWithView(handler, funcOut, writer)
 	} else if !isView(handler) && len(funcOut) > 0 {
 		funcOutObject := funcOut[0].Interface()
 		writer.Header().Set("Content-Type", "application/json")
@@ -164,20 +175,44 @@ func processRequest(handler *handlerFunc, writer http.ResponseWriter, request *h
 	writer.Header().Set("Server", "Golaxy Web Server")
 }
 
+func continueWithView(handler *handlerFunc, funcOut []reflect.Value, writer http.ResponseWriter) {
+	if len(handler.view.GetView()) == 0 {
+		handler.view.SetView(funcOut[0].Interface().(string))
+	}
+	viewResolver := view.ViewResolver{View: &handler.view, Writer: writer}
+	viewResolver.Resolve()
+}
+
 func responseWrite(writer http.ResponseWriter, funcOutObject interface{}) {
 	output, err := json.Marshal(funcOutObject)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	jsonString := string(output)
 	fmt.Fprint(writer, jsonString)
 }
 
-func StartHttpServer(ip string, port int) {
+func StartHttpServer() {
+	ip, port := getServerVariables()
 	fs := http.FileServer(http.Dir(STATIC_DIRECTORY))
 	http.Handle(STATIC_PATH_PREFIX, http.StripPrefix(STATIC_PATH_PREFIX, fs))
 	http.HandleFunc("/", requestHandler)
 	socket := ip + ":" + strconv.Itoa(port)
 	http.ListenAndServe(socket, nil)
+}
+
+func getServerVariables() (string, int) {
+	properties := config.GetProperties()
+	var ip string
+	var port = 8080
+	if properties != nil {
+		if properties.Server.IP != "" {
+			ip = properties.Server.IP
+		}
+		if properties.Server.Port != 0 {
+			port = properties.Server.Port
+		}
+	}
+	return ip, port
 }

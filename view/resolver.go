@@ -26,13 +26,18 @@ func (v *ViewResolver) Resolve() {
 	}
 	views = append(views, VIEW_PREFIX+viewName+VIEW_SUFFIX)
 
-	t, err := template.ParseFiles(views...)
+	tpl := template.Must(template.New(viewName).Funcs(v.GetFuncMap()).ParseFiles(views...))
+	err := tpl.ExecuteTemplate(v.Writer, layoutName+VIEW_SUFFIX, handlerView.modelMap)
 	if err != nil {
-		http.Error(v.Writer.(http.ResponseWriter), err.Error(), http.StatusInternalServerError)
+		http.Error(v.Writer.(http.ResponseWriter), http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
+}
 
-	if err := t.Execute(v.Writer, handlerView.modelMap); err != nil {
-		http.Error(v.Writer.(http.ResponseWriter), err.Error(), http.StatusInternalServerError)
+func (v *ViewResolver) GetFuncMap() template.FuncMap {
+	return template.FuncMap{
+		"html": func(str string) template.HTML {
+			return template.HTML(str)
+		},
 	}
 }

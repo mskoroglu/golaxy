@@ -6,6 +6,9 @@ import (
 	"fmt"
 )
 
+// HTTP isteklerinde header ile gelen parametreleri döndürür.
+// Tip dönüşümleriyle uğraşmak zorunda kalınmadan, uygun metod kullanılarak veri elde edilebilir.
+// Aynı ada sahip parametreleri elde edebilmek için ilgili tipin array döndüren metodu kullanılabilir.
 type Header map[string][]string
 
 func (h *Header) value(key string) ([]string, error) {
